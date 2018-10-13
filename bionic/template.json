@@ -1,0 +1,88 @@
+{
+    "variables": {
+        "region": "eu-west-1",
+        "buildtime": "{{isotime \"2006-01-02-1504\"}}"
+    },
+    "builders": [{
+        "type": "amazon-ebssurrogate",
+        "region": "{{user `region`}}",
+
+        "ssh_pty": true,
+        "instance_type": "c5.large",
+        "associate_public_ip_address": true,
+        "ssh_username": "ubuntu",
+        "ssh_timeout": "5m",
+
+        "source_ami_filter": {
+            "filters": {
+                "virtualization-type": "hvm",
+                "name": "*ubuntu-bionic-18.04-amd64-server-*",
+                "root-device-type": "ebs"
+            },
+            "owners": ["099720109477"],
+            "most_recent": true
+        },
+
+        "launch_block_device_mappings": [
+            {
+                "device_name": "/dev/xvdf",
+                "delete_on_termination": true,
+                "volume_size": 8,
+                "volume_type": "gp2"
+            }
+        ],
+
+        "run_tags": {
+            "Name": "Packer Builder - ZFS Root Ubuntu",
+            "Project": "0xcafec0.de"
+        },
+        "run_volume_tags": {
+            "Name": "Packer Builder - ZFS Root Ubuntu",
+            "Project": "0xcafec0.de"
+        },
+
+        "iam_instance_profile": "default",
+
+        "ami_name": "ubuntu-bionic-18.04-amd64-zfs-server-{{ user `buildtime` }}",
+        "ami_description": "Ubuntu bionic (18.04) with ZFS Root Filesystem",
+        "ami_virtualization_type": "hvm",
+        "ena_support": true,
+        "sriov_support": true,
+        "encrypt_boot": true,
+        "ami_root_device": {
+            "source_device_name": "/dev/xvdf",
+            "device_name": "/dev/xvda",
+            "delete_on_termination": true,
+            "volume_size": 8,
+            "volume_type": "gp2"
+        },
+        "tags": {
+            "Name": "Ubuntu bionic (18.04) with ZFS Root Filesystem",
+            "BuildTime": "{{ user `buildtime` }}"
+        }
+    }],
+    "provisioners": [
+        {
+            "type": "file",
+            "source": "scripts/sources-{{user `region`}}.list",
+            "destination": "/tmp/sources.list"
+        },
+        {
+            "type": "file",
+            "source": "scripts/chroot-bootstrap.sh",
+            "destination": "/tmp/chroot-bootstrap.sh"
+        },
+        {
+            "type": "file",
+            "source": "scripts/get_surrogate_device.py",
+            "destination": "/tmp/get_surrogate_device.py"
+        },
+        {
+            "type": "shell",
+            "start_retry_timeout": "5m",
+            "script": "scripts/surrogate-bootstrap.sh",
+            "skip_clean": true
+        }
+    ]
+}
+
